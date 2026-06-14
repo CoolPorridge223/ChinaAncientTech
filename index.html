@@ -19,7 +19,7 @@
         <p class="eyebrow">从上古到明清</p>
         <h2 id="page-title">把“经验”背后的算法、模型和仪器工程看出来</h2>
         <p>
-          本网页整理数学、天文历法、算学工具、物理仪器四类成果。点击每个节点可查看技术原理、人物、核心史料与历史价值。
+          本网页整理 <span id="totalCount">100</span> 项数学、天文历法、算学工具、物理仪器与工程工艺成果。点击每个节点可查看技术原理、人物、引用来源与历史价值。
         </p>
       </section>
 
@@ -35,6 +35,7 @@
           <button class="chip" data-filter="天文历法" type="button">天文历法</button>
           <button class="chip" data-filter="算学工具" type="button">算学工具</button>
           <button class="chip" data-filter="物理仪器" type="button">物理仪器</button>
+          <button class="chip" data-filter="工程工艺" type="button">工程工艺</button>
           <button class="chip" data-filter="冷门成果" type="button">冷门成果</button>
         </div>
 
@@ -72,6 +73,15 @@
           </div>
           <div id="timeline" class="timeline"></div>
         </div>
+      </section>
+
+      <section id="referenceSection" class="reference-section" aria-labelledby="reference-title">
+        <p class="eyebrow">资料来源</p>
+        <h2 id="reference-title">引用资料与校核来源</h2>
+        <p>
+          条目以原典、史书和科技史研究著作为基础整理；弹窗中会显示每个成就对应的来源链接。
+        </p>
+        <div id="referenceList" class="reference-list"></div>
       </section>
     </main>
 
