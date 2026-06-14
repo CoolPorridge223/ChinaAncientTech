@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>中国古代数理科技时间线</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">古代科技史料数字化</p>
+        <h1>中国古代数理科技时间线</h1>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro-copy" aria-labelledby="page-title">
+        <p class="eyebrow">从上古到明清</p>
+        <h2 id="page-title">把“经验”背后的算法、模型和仪器工程看出来</h2>
+        <p>
+          本网页整理数学、天文历法、算学工具、物理仪器四类成果。点击每个节点可查看技术原理、人物、核心史料与历史价值。
+        </p>
+      </section>
+
+      <section class="control-panel" aria-label="检索和朝代跳转">
+        <div class="search-field">
+          <label for="searchInput">关键词检索</label>
+          <input id="searchInput" type="search" placeholder="如：九章、授时历、割圆术、地动仪" />
+        </div>
+
+        <div class="chip-group" aria-label="分类筛选">
+          <button class="chip active" data-filter="全部" type="button">全部</button>
+          <button class="chip" data-filter="数学方法" type="button">数学方法</button>
+          <button class="chip" data-filter="天文历法" type="button">天文历法</button>
+          <button class="chip" data-filter="算学工具" type="button">算学工具</button>
+          <button class="chip" data-filter="物理仪器" type="button">物理仪器</button>
+          <button class="chip" data-filter="冷门成果" type="button">冷门成果</button>
+        </div>
+
+        <div class="jump-grid">
+          <div>
+            <label for="eraJump">朝代跳转</label>
+            <select id="eraJump">
+              <option value="">选择历史阶段</option>
+              <option value="era-上古先秦">上古先秦</option>
+              <option value="era-秦汉">秦汉</option>
+              <option value="era-魏晋南北朝">魏晋南北朝</option>
+              <option value="era-隋唐">隋唐</option>
+              <option value="era-宋元">宋元</option>
+              <option value="era-明清">明清</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="insight-strip" aria-label="趣味延伸">
+        <div class="insight-head">
+          <div>
+            <p class="eyebrow">趣味延伸</p>
+            <h2>冷门一瞥</h2>
+          </div>
+          <button id="refreshCold" class="refresh-button" type="button">换一条</button>
+        </div>
+        <div id="featuredCold" class="featured-cold"></div>
+      </section>
+
+      <section id="resultArea" class="timeline-layout" aria-live="polite">
+        <div>
+          <div class="result-line">
+            <button id="resetFilters" type="button">重置筛选</button>
+          </div>
+          <div id="timeline" class="timeline"></div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="detailModal" class="detail-modal" aria-labelledby="modalTitle">
+      <button id="closeModal" class="close-button" type="button" aria-label="关闭弹窗">×</button>
+      <div id="modalBody"></div>
+    </dialog>
+
+    <script src="script.js"></script>
+  </body>
+</html>
