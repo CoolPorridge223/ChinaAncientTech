@@ -275,20 +275,26 @@ const coldFacts = timelineData
 
 let activeFilter = "全部";
 let coldIndex = 0;
+let revealObserver = null;
+let progressFrame = null;
+let chromeFrame = null;
+let chromeIsScrolled = false;
 
 const timelineEl = document.querySelector("#timeline");
 const searchInput = document.querySelector("#searchInput");
 const resultArea = document.querySelector("#resultArea");
 const insightStrip = document.querySelector(".insight-strip");
 const eraJump = document.querySelector("#eraJump");
+const topbar = document.querySelector(".topbar");
+const controlPanel = document.querySelector(".control-panel");
 const resetFilters = document.querySelector("#resetFilters");
 const featuredCold = document.querySelector("#featuredCold");
 const refreshCold = document.querySelector("#refreshCold");
 const modal = document.querySelector("#detailModal");
 const modalBody = document.querySelector("#modalBody");
 const closeModal = document.querySelector("#closeModal");
-const referenceList = document.querySelector("#referenceList");
 const totalCount = document.querySelector("#totalCount");
+const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 if (totalCount) totalCount.textContent = String(timelineData.length);
 
@@ -344,11 +350,177 @@ function groupByEra(items) {
     .filter((group) => group.items.length > 0);
 }
 
+function updateTimelineProgress() {
+  const rect = timelineEl.getBoundingClientRect();
+  const viewportAnchor = window.innerHeight * 0.56;
+  const rawProgress = (viewportAnchor - rect.top) / Math.max(rect.height, 1);
+  const progress = Math.max(0, Math.min(1, rawProgress));
+  timelineEl.style.setProperty("--timeline-progress", `${progress * 100}%`);
+}
+
+function requestTimelineProgressUpdate() {
+  if (progressFrame) return;
+  progressFrame = requestAnimationFrame(() => {
+    updateTimelineProgress();
+    progressFrame = null;
+  });
+}
+
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function lerp(start, end, progress) {
+  return start + (end - start) * progress;
+}
+
+function clampCssPx(min, preferred, max) {
+  return clampNumber(preferred, min, max);
+}
+
+function setPixelVar(name, value) {
+  document.documentElement.style.setProperty(name, `${value.toFixed(2)}px`);
+}
+
+function updateStickyMetrics() {
+  const topbarHeight = topbar ? topbar.getBoundingClientRect().height : 0;
+  const panelStyle = controlPanel ? window.getComputedStyle(controlPanel) : null;
+  const panelHeight =
+    controlPanel && panelStyle?.position === "sticky"
+      ? controlPanel.getBoundingClientRect().height
+      : 0;
+  const topGap = chromeIsScrolled ? 10 : 14;
+
+  setPixelVar("--control-top", topbarHeight + topGap);
+  setPixelVar("--era-heading-top", topbarHeight + panelHeight + 18);
+  setPixelVar("--scroll-pad", topbarHeight + panelHeight + 24);
+}
+
+function updateChromeMode(options = {}) {
+  const forceCompact = Boolean(options.forceCompact);
+  const viewportWidth = window.innerWidth;
+  const rootFontSize = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+  const scrollY = window.scrollY;
+  const progress = forceCompact ? 1 : clampNumber(scrollY / 190, 0, 1);
+
+  if (forceCompact) {
+    chromeIsScrolled = true;
+  } else if (!chromeIsScrolled && scrollY > 132) {
+    chromeIsScrolled = true;
+  } else if (chromeIsScrolled && scrollY < 28) {
+    chromeIsScrolled = false;
+  }
+
+  document.body.classList.toggle("is-scrolled", chromeIsScrolled);
+  document.documentElement.style.setProperty("--chrome-progress", progress.toFixed(3));
+
+  const expandedTitle = clampCssPx(rootFontSize * 2, viewportWidth * 0.05, rootFontSize * 4.8);
+  const compactTitle = clampCssPx(rootFontSize * 1.05, viewportWidth * 0.018, rootFontSize * 1.55);
+  const expandedTopbarPad = clampCssPx(18, viewportWidth * 0.03, 30);
+  const expandedControlPad = clampCssPx(18, viewportWidth * 0.03, 28);
+  const expandedLabel = clampCssPx(rootFontSize * 1.05, viewportWidth * 0.018, rootFontSize * 1.38);
+
+  setPixelVar("--title-size", lerp(expandedTitle, compactTitle, progress));
+  setPixelVar("--topbar-pad-y", lerp(expandedTopbarPad, 8, progress));
+  setPixelVar("--title-shell-pad-y", lerp(12, 2, progress));
+  setPixelVar("--control-pad-y", lerp(expandedControlPad, 10, progress));
+  setPixelVar("--control-pad-x", lerp(expandedControlPad, 12, progress));
+  setPixelVar("--control-gap", lerp(18, 10, progress));
+  setPixelVar("--control-margin-y", lerp(22, 10, progress));
+  setPixelVar("--search-min-height", lerp(54, 40, progress));
+  setPixelVar("--label-size", lerp(expandedLabel, rootFontSize * 0.94, progress));
+  setPixelVar("--chip-min-height", lerp(38, 34, progress));
+  setPixelVar("--chip-pad-x", lerp(13, 10, progress));
+
+  updateStickyMetrics();
+}
+
+function requestChromeUpdate() {
+  if (chromeFrame) return;
+  chromeFrame = requestAnimationFrame(() => {
+    updateChromeMode();
+    chromeFrame = null;
+  });
+}
+
+function getStickyOffset() {
+  const topbarHeight = topbar ? topbar.getBoundingClientRect().height : 0;
+  const panelStyle = controlPanel ? window.getComputedStyle(controlPanel) : null;
+  const panelHeight =
+    controlPanel && panelStyle?.position === "sticky"
+      ? controlPanel.getBoundingClientRect().height
+      : 0;
+
+  return topbarHeight + panelHeight + 18;
+}
+
+function scrollToTarget(target) {
+  if (!target) return;
+  updateChromeMode({ forceCompact: true });
+
+  requestAnimationFrame(() => {
+    const targetTop = target.getBoundingClientRect().top + window.scrollY;
+    const top = Math.max(targetTop - getStickyOffset(), 0);
+
+    window.scrollTo({
+      top,
+      behavior: motionQuery.matches ? "auto" : "smooth"
+    });
+  });
+}
+
+function getSelectedEraTarget() {
+  if (!eraJump.value) return null;
+  return document.getElementById(eraJump.value);
+}
+
+function scrollToResults() {
+  scrollToTarget(getSelectedEraTarget() || resultArea);
+}
+
+function setupTimelineAnimations() {
+  const cards = Array.from(timelineEl.querySelectorAll(".event-card"));
+
+  if (revealObserver) {
+    revealObserver.disconnect();
+    revealObserver = null;
+  }
+
+  if (cards.length === 0) {
+    timelineEl.style.setProperty("--timeline-progress", "0%");
+    return;
+  }
+
+  if (motionQuery.matches || !("IntersectionObserver" in window)) {
+    cards.forEach((card) => card.classList.add("is-visible"));
+    updateTimelineProgress();
+    return;
+  }
+
+  revealObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        revealObserver.unobserve(entry.target);
+      });
+    },
+    {
+      rootMargin: "0px 0px -8% 0px",
+      threshold: 0.16
+    }
+  );
+
+  cards.forEach((card) => revealObserver.observe(card));
+  updateTimelineProgress();
+}
+
 function renderTimeline() {
   const filtered = getFilteredData();
 
   if (filtered.length === 0) {
     timelineEl.innerHTML = `<div class="empty-state">没有找到匹配条目。可以换一个关键词，或重置筛选。</div>`;
+    setupTimelineAnimations();
     return;
   }
 
@@ -364,7 +536,7 @@ function renderTimeline() {
           const cold = item.cold ? `<span class="pill cold">冷门成果</span>` : "";
 
           return `
-            <article class="event-card" id="event-${item.id}" style="--accent: ${accent}; animation-delay: ${Math.min(index * 0.04, 0.28)}s">
+            <article class="event-card" id="event-${item.id}" style="--accent: ${accent}; --card-delay: ${Math.min(index * 0.04, 0.28)}s">
               <div class="event-date">
                 <strong>${escapeHtml(item.yearLabel)}</strong>
                 <span>${escapeHtml(item.dynasty)}</span>
@@ -398,6 +570,7 @@ function renderTimeline() {
     .join("");
 
   timelineEl.innerHTML = sections;
+  setupTimelineAnimations();
 }
 
 function renderColdFeature() {
@@ -434,9 +607,7 @@ function updateSearchMode() {
   renderTimeline();
 
   if (hasQuery) {
-    requestAnimationFrame(() => {
-      resultArea.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    requestAnimationFrame(scrollToResults);
   }
 }
 
@@ -491,22 +662,6 @@ function openDetail(id) {
   }
 }
 
-function renderReferences() {
-  if (!referenceList) return;
-  referenceList.innerHTML = referenceSources
-    .map((source) => `
-      <article class="reference-card">
-        <div>
-          <strong>${escapeHtml(source.label)}</strong>
-          <span>${escapeHtml(source.type)}</span>
-        </div>
-        <p>${escapeHtml(source.note)}</p>
-        <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.url)}</a>
-      </article>
-    `)
-    .join("");
-}
-
 document.querySelector(".chip-group").addEventListener("click", (event) => {
   const chip = event.target.closest(".chip");
   if (!chip) return;
@@ -520,8 +675,7 @@ searchInput.addEventListener("input", updateSearchMode);
 
 eraJump.addEventListener("change", () => {
   if (!eraJump.value) return;
-  const target = document.getElementById(eraJump.value);
-  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  scrollToTarget(getSelectedEraTarget());
 });
 
 refreshCold.addEventListener("click", renderColdFeature);
@@ -555,6 +709,19 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+window.addEventListener(
+  "scroll",
+  () => {
+    requestChromeUpdate();
+    requestTimelineProgressUpdate();
+  },
+  { passive: true }
+);
+window.addEventListener("resize", () => {
+  requestChromeUpdate();
+  requestTimelineProgressUpdate();
+});
+
+updateChromeMode();
 renderTimeline();
 renderColdFeature();
-renderReferences();
